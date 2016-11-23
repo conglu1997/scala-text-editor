@@ -131,6 +131,16 @@ class Editor extends Undoable[Editor.Action] {
             ed.saveFile(name)
     }
 
+    def markCommand() : Unit = {
+        ed.mark = ed.point
+    }
+
+    def switchMarkCommand() : Unit = {
+        val tmp = ed.point
+        ed.point = ed.mark
+        ed.mark = tmp
+    }
+
     /** Prompt for a file to read into the buffer.  */
     def replaceFileCommand() {
         if (! checkClean("overwrite")) return
@@ -270,7 +280,9 @@ object Editor {
         Display.ctrl('G') -> (_.beep),
         Display.ctrl('K') -> (_.deleteCommand(END)),
         Display.ctrl('L') -> (_.chooseOrigin),
+        Display.ctrl('M') -> (_.markCommand),
         Display.ctrl('N') -> (_.moveCommand(DOWN)),
+        Display.ctrl('O') -> (_.switchMarkCommand),
         Display.ctrl('P') -> (_.moveCommand(UP)),
         Display.ctrl('Q') -> (_.quit),
         Display.ctrl('R') -> (_.replaceFileCommand),
