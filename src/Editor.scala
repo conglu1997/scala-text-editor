@@ -54,6 +54,12 @@ class Editor extends Undoable[Editor.Action] {
                 p = ed.getPos(row, 0)
             case Editor.END =>
                 p = ed.getPos(row, ed.getLineLength(row)-1)
+            case Editor.CTRLHOME =>
+                // Task 1 implementation
+                p = 0
+            case Editor.CTRLEND =>
+                // Task 1 implementation
+                p = ed.length
             case Editor.PAGEDOWN =>
                 p = ed.getPos(row + Editor.SCROLL, 0)
                 display.scroll(+Editor.SCROLL)
@@ -179,15 +185,16 @@ class Editor extends Undoable[Editor.Action] {
 
 object Editor {
     /** Direction for use as argument to moveCommand or deleteCommand. */
-    val LEFT = 1
-    val RIGHT = 2
-    val UP = 3
-    val DOWN = 4
-    val HOME = 5
-    val END = 6
-    val PAGEUP = 7
-
+    val LEFT =     1
+    val RIGHT =    2
+    val UP =       3
+    val DOWN =     4
+    val HOME =     5
+    val END =      6
+    val PAGEUP =   7
     val PAGEDOWN = 8
+    val CTRLHOME = 9
+    val CTRLEND =  10
     
     /** Amount to scroll the screen for PAGEUP and PAGEDOWN */
     val SCROLL = Display.HEIGHT - 3
@@ -230,6 +237,8 @@ object Editor {
         Display.DOWN -> (_.moveCommand(DOWN)),
         Display.HOME -> (_.moveCommand(HOME)),
         Display.END -> (_.moveCommand(END)),
+        Display.CTRLHOME -> (_.moveCommand(CTRLHOME)),
+        Display.CTRLEND -> (_.moveCommand(CTRLEND)),
         Display.PAGEUP -> (_.moveCommand(PAGEUP)),
         Display.PAGEDOWN -> (_.moveCommand(PAGEDOWN)),
         Display.ctrl('?') -> (_.deleteCommand(LEFT)),
@@ -247,7 +256,8 @@ object Editor {
         Display.ctrl('R') -> (_.replaceFileCommand),
         Display.ctrl('W') -> (_.saveFileCommand),
         Display.ctrl('Y') -> (_.redo),
-        Display.ctrl('Z') -> (_.undo))
+        Display.ctrl('Z') -> (_.undo)
+    )
 
     for (ch <- Display.printable)
         keymap += ch -> (_.insertCommand(ch.toChar))
