@@ -1,6 +1,7 @@
 // Editor.scala
 // Copyright (c) 2015 J. M. Spivey
 
+import Text.Immutable
 import Undoable.Change
 
 /** The editor state extended with methods for editor commands. */
@@ -91,23 +92,34 @@ class Editor extends Undoable[Editor.Action] {
     /** Command: Delete in a specified direction */
     def deleteCommand(dir: Int): Change = {
         var p = ed.point
-        var ch: Char = 0
-
+        var ch : Immutable = null
         dir match {
             case Editor.LEFT =>
                 if (p == 0) { beep(); return null }
                 p -= 1
-                ch = ed.charAt(p)
+                ch = ed.getRange(p, 1)
                 ed.deleteChar(p)
                 ed.point = p
             case Editor.RIGHT =>
                 if (p == ed.length) { beep(); return null }
-                ch = ed.charAt(p)
+                ch = ed.getRange(p, 1)
                 ed.deleteChar(p)
+            case Editor.END =>
+                if (p == ed.length) { beep(); return null }
+                if (ed.charAt(p) == '\n') {
+                    // Delete the new-line and join the two lines
+                    ch = ed.getRange(p, 1)
+                    ed.deleteChar(p)
+                } else {
+                    // Delete to the end of the line
+                    val row = ed.getRow(p)
+                    val numChars = ed.getPos(row, ed.getLineLength(row)-1) - p
+                    ch = ed.getRange(p, numChars)
+                    ed.deleteRange(p, numChars)
+                }
             case _ =>
                 throw new Error("Bad direction")
         }
-
         new ed.Deletion(p, ch)
     }
     
@@ -256,6 +268,7 @@ object Editor {
         Display.ctrl('E') -> (_.moveCommand(END)),
         Display.ctrl('F') -> (_.moveCommand(RIGHT)),
         Display.ctrl('G') -> (_.beep),
+        Display.ctrl('K') -> (_.deleteCommand(END)),
         Display.ctrl('L') -> (_.chooseOrigin),
         Display.ctrl('N') -> (_.moveCommand(DOWN)),
         Display.ctrl('P') -> (_.moveCommand(UP)),

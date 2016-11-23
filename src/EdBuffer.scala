@@ -264,10 +264,10 @@ class EdBuffer {
         }
     }
 
-    /** Change that records a deletion */
-    class Deletion(pos: Int, deleted: Char) extends Change {
+    /** Generalised change that records a deletion (Task 3) */
+    class Deletion(pos: Int, deleted: Text.Immutable) extends Change {
         def undo() { insert(pos, deleted) }
-        def redo() { deleteChar(pos) }
+        def redo() { deleteRange(pos, deleted.length) }
     }
 
     def wrapChange(before: Memento, change: Change, after: Memento) = {
