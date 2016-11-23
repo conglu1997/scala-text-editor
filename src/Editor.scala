@@ -73,6 +73,13 @@ class Editor extends Undoable[Editor.Action] {
         ed.point = p
     }
 
+    /** Command: Transpose two characters (Task 2) */
+    def transposeCommand : Change = {
+        val p = ed.point
+        ed.transpose(p)
+        new ed.Transposition(p)
+    }
+
     /** Command: Insert a character */
     def insertCommand(ch: Char): Change = {
         val p = ed.point
@@ -254,6 +261,7 @@ object Editor {
         Display.ctrl('P') -> (_.moveCommand(UP)),
         Display.ctrl('Q') -> (_.quit),
         Display.ctrl('R') -> (_.replaceFileCommand),
+        Display.ctrl('T') -> (_.transposeCommand),
         Display.ctrl('W') -> (_.saveFileCommand),
         Display.ctrl('Y') -> (_.redo),
         Display.ctrl('Z') -> (_.undo)

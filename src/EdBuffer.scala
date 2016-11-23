@@ -111,6 +111,33 @@ class EdBuffer {
 
     // Mutator methods
 
+    /** Transpose two characters */
+    def transpose(pos: Int) {
+        noteDamage(false)
+        val row = getRow(pos)
+        if (pos == getPos(row, 0)){
+            // If the pointer is at the start/end of a line - transpose the inner two characters
+            if (getLineLength(row) > 2) transpose(pos + 1)
+        } else if (pos == getPos(row, getLineLength(row)-1)) {
+            if (getLineLength(row) > 2) transpose(pos - 1)
+        } else {
+            // Switch the two characters
+            val ch = charAt(pos-1)
+            setChar(pos-1, charAt(pos))
+            setChar(pos, ch)
+            // Shift the point up by one
+            if (pos < length) point = pos + 1
+        }
+        setModified()
+    }
+
+    /** Set a character */
+    def setChar(pos: Int, ch: Char) {
+        noteDamage(false)
+        text.set(pos, ch)
+        setModified()
+    }
+
     /** Delete a character */
     def deleteChar(pos: Int) {
         val ch = text.charAt(pos)
@@ -204,6 +231,12 @@ class EdBuffer {
     class Insertion(pos: Int, text: Text.Immutable) extends Change {
         def undo() { deleteRange(pos, text.length) }
         def redo() { insert(pos, text) }
+    }
+
+    /** Change that records a transposition (Task 2) */
+    class Transposition(pos: Int) extends Change {
+        def undo() { transpose(pos) }
+        def redo() { transpose(pos) }
     }
 
     /** Insertion that can be amalgamated with adjacent, similar changes */
