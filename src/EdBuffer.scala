@@ -90,7 +90,7 @@ class EdBuffer {
             // Always give a well-defined value for mark
             _mark
         } else {
-            0
+            _point
         }
     }
 
