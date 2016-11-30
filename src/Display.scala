@@ -160,7 +160,8 @@ class Display(terminal: Display.Hardware) {
     
     /** Check that the origin obeys the rules, and move it if not */
     private def checkScroll() {
-        if (row < origin || row >= origin + LINES)
+        // Task 4 - always choose the origin.
+        // if (row < origin || row >= origin + LINES)
             chooseOrigin()
 
         /* Ensure that the origin is within the buffer, if possible by
