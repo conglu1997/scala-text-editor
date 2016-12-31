@@ -20,23 +20,24 @@ class EdBuffer {
     /** Current marked position. */
     private var _mark = 0
 
+    /** Task 9 - Timestamp for editing buffer that is incremented on each editing action.
+      * This is used to ensure each editing action has a unique timestamp. */
+    private var _timestamp = 0
+
+    /** Timestamp for the current file and display buffer contents **/
+    private var _file_timestamp = 0
+    private var _buffer_timestamp = 0
+
     // State components that are not restored on undo
 
     /** File name for saving the text. */
     private var _filename = ""
 
-    /** Dirty flag */
-    private var modified = false
-
-
     /** Register a display */
     def register(display: Display) { this.display = display }
 
-    /** Mark the buffer as modified */
-    private def setModified() { modified = true }
-
-    /** Test whether the text is modified */
-    def isModified = modified
+    /** Test whether the text is modified - (Task 9) regard the text as modified if the buffer differs from the file.*/
+    def isModified = buffer_timestamp != file_timestamp
     
 
     // Display update
@@ -84,23 +85,33 @@ class EdBuffer {
         _point = point
     }
 
-    // Task 7
+    def filename = _filename
+
+    private def filename_=(filename: String) { _filename = filename }
+
+    // Task 7 Accessors
     def mark = {
-        if (0 <= _mark && _mark <= length){
-            // Always give a well-defined value for mark
-            _mark
-        } else {
-            _point
-        }
+        // Always give a well-defined value for mark
+        if (_mark < 0 || _mark > length){ _mark = 0 }
+        _mark
     }
 
     def mark_=(mark: Int) {
         _mark = mark
     }
 
-    def filename = _filename
+    // Task 9 Accessors
+    def buffer_timestamp = _buffer_timestamp
 
-    private def filename_=(filename: String) { _filename = filename }
+    def buffer_timestamp_=(buffer_timestamp: Int) { _buffer_timestamp = buffer_timestamp }
+
+    def file_timestamp = _file_timestamp
+
+    private def file_timestamp_=(file_timestamp: Int) { _file_timestamp = file_timestamp }
+
+    def timestamp = _timestamp
+
+    def timestamp_=(timestamp: Int) { _timestamp = timestamp }
 
 
     // Delegate methods for text
@@ -145,14 +156,12 @@ class EdBuffer {
             // Shift the point up by one
             if (pos < length) point = pos + 1
         }
-        setModified()
     }
 
     /** Set a character */
     def setChar(pos: Int, ch: Char) {
         noteDamage(false)
         text.set(pos, ch)
-        setModified()
     }
 
     /** Delete a character */
@@ -162,7 +171,6 @@ class EdBuffer {
         // Shift the mark
         if (pos <= mark) mark -= 1
         text.deleteChar(pos)
-        setModified()
     }
 
     /** Delete a range of characters. */
@@ -173,7 +181,6 @@ class EdBuffer {
             mark -= len
         }
         text.deleteRange(pos, len)
-        setModified()
     }
     
     /** Insert a character */
@@ -182,7 +189,6 @@ class EdBuffer {
         // Shift the mark
         if (pos <= mark) mark += 1
         text.insert(pos, ch)
-        setModified()
     }
     
     /** Insert a string */
@@ -191,7 +197,6 @@ class EdBuffer {
         // Shift the mark
         if (pos <= mark) mark += s.length
         text.insert(pos, s)
-        setModified()
     }
     
     /** Insert an immutable text. */
@@ -200,7 +205,6 @@ class EdBuffer {
         // Shift the mark
         if (pos <= mark) mark += s.length
         text.insert(pos, s)
-        setModified()
     }
     
     /** Insert a Text. */
@@ -209,7 +213,6 @@ class EdBuffer {
         // Shift the mark
         if (pos <= mark) mark += t.length
         text.insert(pos, t)
-        setModified()
     }
 
     /** Load a file into the buffer. */
@@ -225,10 +228,14 @@ class EdBuffer {
             case e: IOException =>
                 MiniBuffer.message(display, "Couldn't read file '%s'", name)
         }
-        
-        modified = false
-        // Reset the mark
+
+        // Reset the mark (Task 7)
         mark = 0
+
+        // Reset the file and buffer timestamp (Task 9)
+        file_timestamp = 0
+        buffer_timestamp = 0
+
         noteDamage(true)
     }
     
@@ -240,11 +247,13 @@ class EdBuffer {
             val out = new FileWriter(name)
             text.writeFile(out)
             out.close()
-            modified = false
         } catch {
             case e: IOException =>
                 MiniBuffer.message(display, "Couldn't write '%s'", name)
         }
+
+        // Task 9 - Set the file timestamp to be the same as the buffer timestamp.
+        file_timestamp = buffer_timestamp
     }
 
 
@@ -257,9 +266,13 @@ class EdBuffer {
         private val pt = point
         // Store the mark information as well (Task 7)
         private val mk = mark
+        // Store the current buffer timestamp (Task 9)
+        // The buffer timestamp is part of the editing state whilst the file timestamp is only modified when a file
+        // is saved or loaded and the principal timestamp is a time-keeping device.
+        private val bf_ts = buffer_timestamp
         
         /** Restore the state when the memento was created */
-        def restore() { point = pt ; mark = mk }
+        def restore() { point = pt ; mark = mk; buffer_timestamp = bf_ts }
     }
 
     /** Change that records an insertion */
