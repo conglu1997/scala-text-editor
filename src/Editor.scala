@@ -81,6 +81,28 @@ class Editor extends Undoable[Editor.Action] {
         new ed.Transposition(p)
     }
 
+    /** Command: Move the cursor in the specified direction */
+    def toUpperCommand: Change = {
+        var p = ed.point
+        if (p == ed.length || !ed.charAt(p).isLetterOrDigit) {
+            null
+        } else {
+            // Move p to the point that the word starts at.
+            while (p > 0 && ed.charAt(p-1).isLetterOrDigit) p -= 1
+            var length = 1
+            while (p + length < ed.length && ed.charAt(p + length).isLetterOrDigit) length += 1
+
+            val ch = ed.getRange(p, length)
+
+            // Use setChar to avoid insertions and deletions
+            for (i <- 0 until length) {
+                ed.setChar(p + i, ed.charAt(p + i).toUpper)
+            }
+
+            new ed.AmalgToUpper(p, ch)
+        }
+    }
+
     /** Command: Insert a character */
     def insertCommand(ch: Char): Change = {
         val p = ed.point
@@ -131,10 +153,12 @@ class Editor extends Undoable[Editor.Action] {
             ed.saveFile(name)
     }
 
+    /** Command: Set the mark (Task 7) */
     def markCommand() : Unit = {
         ed.mark = ed.point
     }
 
+    /** Command: Switch the mark and cursor (Task 7) */
     def switchMarkCommand() : Unit = {
         val tmp = ed.point
         ed.point = ed.mark
@@ -295,6 +319,7 @@ object Editor {
         Display.ctrl('Q') -> (_.quit),
         Display.ctrl('R') -> (_.replaceFileCommand),
         Display.ctrl('T') -> (_.transposeCommand),
+        Display.ctrl('U') -> (_.toUpperCommand),
         Display.ctrl('W') -> (_.saveFileCommand),
         Display.ctrl('Y') -> (_.redo),
         Display.ctrl('Z') -> (_.undo)

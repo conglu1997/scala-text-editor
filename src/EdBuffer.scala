@@ -313,6 +313,30 @@ class EdBuffer {
         }
     }
 
+    /** Change that records a to-upper edit, can be amalgamated with a change on the same word (Task A) */
+    class AmalgToUpper(val pos: Int, text: Text.Immutable) extends Change {
+        // changed is the pre-modified word.
+        def undo() = {
+            for (i <- 0 until text.length) {
+                setChar(pos + i, text.charAt(i))
+            }
+        }
+        def redo() = {
+            for (i <- 0 until text.length) {
+                setChar(pos + i, text.charAt(i).toUpper)
+            }
+        }
+        // Amalgamate if the previous command was a toUpper called on the same word
+        // which occurs when the starting point of each word is the same.
+        override def amalgamate(change: Change) = {
+            change match {
+                case other: AmalgToUpper =>
+                    if (pos == other.pos) true else false
+                case _ => false
+            }
+        }
+    }
+
     /** Generalised change that records a deletion (Task 3) */
     class Deletion(pos: Int, deleted: Text.Immutable) extends Change {
         def undo() { insert(pos, deleted) }
