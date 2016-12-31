@@ -81,7 +81,7 @@ class Editor extends Undoable[Editor.Action] {
         new ed.Transposition(p)
     }
 
-    /** Command: Move the cursor in the specified direction */
+    /** Command: Convert the letters of the word at the current editing position to uppercase (Task A) */
     def toUpperCommand: Change = {
         var p = ed.point
         if (p == ed.length || !ed.charAt(p).isLetterOrDigit) {
