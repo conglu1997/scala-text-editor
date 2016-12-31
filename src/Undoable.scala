@@ -18,6 +18,9 @@ trait Undoable[Action] {
     /** Beep on error. */
     def beep() // abstract
 
+    // OOP Sheet 3 - Amalgamation behaviour change.
+    private var amalgamating = false
+
     /** Execute an action, recording undo info. */
     // (Task 9) Additionally return true if a change was recorded on the undo stack, otherwise false.
     def perform(action: Action) : Boolean = {
@@ -27,12 +30,14 @@ trait Undoable[Action] {
 
             if (history.nonEmpty) {
                 val prev = history.last
-                if (prev.amalgamate(change)) return true
+                if (amalgamating && prev.amalgamate(change)) return true
             }
 
             history.append(change); undoPointer += 1
+            amalgamating = true
             true
         } else {
+            amalgamating = false
             false
         }
     }
