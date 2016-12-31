@@ -17,6 +17,9 @@ class EdBuffer {
     /** Current editing position. */
     private var _point = 0
 
+    /** Current marked position. */
+    private var _mark = 0
+
     // State components that are not restored on undo
 
     /** File name for saving the text. */
@@ -85,6 +88,16 @@ class EdBuffer {
 
     private def filename_=(filename: String) { _filename = filename }
 
+    // Task 7 Accessors
+    def mark = {
+        // Always give a well-defined value for mark
+        if (_mark < 0 || _mark > length){ _mark = 0 }
+        _mark
+    }
+
+    def mark_=(mark: Int) {
+        _mark = mark
+    }
 
     // Delegate methods for text
     
@@ -142,6 +155,8 @@ class EdBuffer {
     def deleteChar(pos: Int) {
         val ch = text.charAt(pos)
         noteDamage(ch == '\n' || getRow(pos) != getRow(point))
+        // Shift the mark
+        if (pos <= mark) mark -= 1
         text.deleteChar(pos)
         setModified()
     }
@@ -149,6 +164,10 @@ class EdBuffer {
     /** Delete a range of characters. */
     def deleteRange(pos: Int, len: Int) {
         noteDamage(true)
+        // Shift the mark - note that we may delete the mark in the process
+        if (pos <= mark) {
+            mark -= len
+        }
         text.deleteRange(pos, len)
         setModified()
     }
@@ -156,6 +175,8 @@ class EdBuffer {
     /** Insert a character */
     def insert(pos: Int, ch: Char) {
         noteDamage(ch == '\n' || getRow(pos) != getRow(point))
+        // Shift the mark
+        if (pos <= mark) mark += 1
         text.insert(pos, ch)
         setModified()
     }
@@ -163,6 +184,8 @@ class EdBuffer {
     /** Insert a string */
     def insert(pos: Int, s: String) {
         noteDamage(true)
+        // Shift the mark
+        if (pos <= mark) mark += s.length
         text.insert(pos, s)
         setModified()
     }
@@ -170,6 +193,8 @@ class EdBuffer {
     /** Insert an immutable text. */
     def insert(pos: Int, s: Text.Immutable) {
         noteDamage(true)
+        // Shift the mark
+        if (pos <= mark) mark += s.length
         text.insert(pos, s)
         setModified()
     }
@@ -177,6 +202,8 @@ class EdBuffer {
     /** Insert a Text. */
     def insert(pos: Int, t: Text) {
         noteDamage(true)
+        // Shift the mark
+        if (pos <= mark) mark += t.length
         text.insert(pos, t)
         setModified()
     }
@@ -196,6 +223,8 @@ class EdBuffer {
         }
         
         modified = false
+        // Reset the mark
+        mark = 0
         noteDamage(true)
     }
     
@@ -222,9 +251,11 @@ class EdBuffer {
      * is recorded consists of just the current point. */
     class Memento {
         private val pt = point
+        // Store the mark information as well (Task 7)
+        private val mk = mark
         
         /** Restore the state when the memento was created */
-        def restore() { point = pt }
+        def restore() { point = pt ; mark = mk }
     }
 
     /** Change that records an insertion */
