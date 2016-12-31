@@ -232,7 +232,8 @@ class EdBuffer {
         // Reset the mark (Task 7)
         mark = 0
 
-        // Reset the file and buffer timestamp (Task 9)
+        // Reset the principal, file and buffer timestamp (Task 9)
+        timestamp = 0
         file_timestamp = 0
         buffer_timestamp = 0
 
