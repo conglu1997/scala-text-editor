@@ -315,7 +315,7 @@ class EdBuffer {
 
     /** Change that records a to-upper edit, can be amalgamated with a change on the same word (Task A) */
     class AmalgToUpper(val pos: Int, text: Text.Immutable) extends Change {
-        // changed is the pre-modified word.
+        // text is the pre-modified word.
         def undo() = {
             for (i <- 0 until text.length) {
                 setChar(pos + i, text.charAt(i))
