@@ -84,24 +84,20 @@ class EdBuffer {
         _point = point
     }
 
-    // Task 7
+    def filename = _filename
+
+    private def filename_=(filename: String) { _filename = filename }
+
+    // Task 7 Accessors
     def mark = {
-        if (0 <= _mark && _mark <= length){
-            // Always give a well-defined value for mark
-            _mark
-        } else {
-            _point
-        }
+        // Always give a well-defined value for mark
+        if (_mark < 0 || _mark > length){ _mark = 0 }
+        _mark
     }
 
     def mark_=(mark: Int) {
         _mark = mark
     }
-
-    def filename = _filename
-
-    private def filename_=(filename: String) { _filename = filename }
-
 
     // Delegate methods for text
     
