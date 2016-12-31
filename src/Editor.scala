@@ -25,9 +25,9 @@ class Editor extends Undoable[Editor.Action] {
 
     /** Ask for confirmation if the buffer is not clean */
     def checkClean(action: String) = {
-        if (! ed.isModified) 
+        if (!ed.isModified) {
             true
-        else {
+        } else {
             val question = 
                 "Buffer modified -- really %s?".format(action)
             MiniBuffer.ask(display, question)
@@ -205,7 +205,15 @@ class Editor extends Undoable[Editor.Action] {
         while (alive) {
             val key = display.getKey()
             Editor.keymap.find(key) match {
-                case Some(cmd) => perform(cmd)
+                case Some(cmd) => {
+                    if(perform(cmd)) {
+                        // Task 9: Increment the "time-keeping" timestamp on each editing action.
+                        // Guarantees unique timestamp for each editing action.
+                        ed.timestamp = ed.timestamp + 1
+                        // Set the buffer timestamp to the timekeeping timestamp.
+                        ed.buffer_timestamp = ed.timestamp
+                    }
+                }
                 case None => beep()
             }
         }

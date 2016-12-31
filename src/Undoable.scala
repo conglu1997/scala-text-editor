@@ -19,17 +19,21 @@ trait Undoable[Action] {
     def beep() // abstract
 
     /** Execute an action, recording undo info. */
-    def perform(action: Action) {
+    // (Task 9) Additionally return true if a change was recorded on the undo stack, otherwise false.
+    def perform(action: Action) : Boolean = {
         val change = obey(action)
         if (change != null) {
             history.reduceToSize(undoPointer)
 
-            if (history.size > 0) {
+            if (history.nonEmpty) {
                 val prev = history.last
-                if (prev.amalgamate(change)) return
+                if (prev.amalgamate(change)) return true
             }
 
             history.append(change); undoPointer += 1
+            true
+        } else {
+            false
         }
     }
 
