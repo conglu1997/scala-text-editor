@@ -49,12 +49,6 @@ class Text(init: Int) extends CharSequence {
         gap = 0; len = 0
     }
 
-    /** Set a single character. */
-    def set(pos: Int, ch: Char) {
-        assert(0 <= pos && pos <= len)
-        buffer(pos) = ch
-    }
-
     /** Insert a single character. */
     def insert(pos: Int, ch: Char) {
         assert(0 <= pos && pos <= len)
