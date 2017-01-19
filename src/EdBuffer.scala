@@ -1,7 +1,8 @@
 // EdBuffer.scala
 // Copyright (c) 2015 J. M. Spivey
 
-import java.io.{Reader, Writer, FileReader, FileWriter, IOException}
+import java.io.{FileReader, FileWriter, IOException, Reader, Writer}
+
 import Undoable.Change
 
 /** The state of an editing session */
@@ -27,6 +28,39 @@ class EdBuffer {
     /** Timestamp for the current file and display buffer contents **/
     private var _file_timestamp = 0
     private var _buffer_timestamp = 0
+
+    /** Task B - record of the enciphered blocks within the text */
+    private var encryptedBlocks = new scala.collection.mutable.HashSet[(Int, Int)]
+
+    private def overlappingBlock(fst : (Int, Int), snd : (Int, Int)) : Boolean = {
+        // Detect whether there is overlap between two inclusive ranges.
+        // The endpoint of each range is *start + length - 1*.
+        fst._1 <= (snd._1 + snd._2 - 1) && snd._1 <= (fst._1 + fst._2 - 1)
+    }
+
+    // Search the encrypted blocks for overlap, return the encrypted block if there is overlap.
+    def inInsideEncryptedBlock(block : (Int, Int)) : Option[(Int, Int)] = {
+        for (e <- encryptedBlocks) {
+            if(overlappingBlock(e, block)) return Some(e)
+        }
+        None
+    }
+
+    // Similar to above, insertion is different to deletion - you can insert when over the first char of a block.
+    def forbidInsertion(block : (Int, Int)) : Boolean = {
+        for ((s, l) <- encryptedBlocks) {
+            if(overlappingBlock((s+1, l-1), block)) return true
+        }
+        false
+    }
+
+    def registerEncryptedBlock(block : (Int, Int)) = {
+        encryptedBlocks += block
+    }
+
+    def removeEncryptedBlock(block : (Int, Int)) = {
+        encryptedBlocks -= block
+    }
 
     // State components that are not restored on undo
 
@@ -160,58 +194,84 @@ class EdBuffer {
 
     /** Set a character */
     def setChar(pos: Int, ch: Char) {
-        noteDamage(false)
-        text.set(pos, ch)
+        noteDamage(true)
+        text.deleteChar(pos)
+        text.insert(pos, ch)
+    }
+
+    /** Encrypt a range of characters. (Task B) */
+    def rotRange(pos: Int, len: Int): Unit = {
+        noteDamage(true)
+        for (i <- 0 until len) {
+            setChar(pos + i, rot13(text.charAt(pos+i)))
+        }
+    }
+
+    def rot13(ch : Char): Char = {
+        if ((ch >= 'a' && ch <= 'm') || (ch >= 'A' && ch <= 'M')){
+            (ch + 13).toChar
+        } else if ((ch >= 'n' && ch <= 'z') || (ch >= 'N' && ch <= 'Z')) {
+            (ch - 13).toChar
+        } else {
+            ch
+        }
+    }
+
+    def shiftMark(pos: Int, num: Int) {
+        // Shift the mark - note that we may delete the mark in the process
+        if (pos <= mark) mark += num
+        // Adjust the encrypted blocks in the buffer
+        var nencryptedBlocks = new scala.collection.mutable.HashSet[(Int, Int)]
+        for ((s, l) <- encryptedBlocks) {
+            if (pos <= s) {
+                nencryptedBlocks += ((s + num, l))
+            } else {
+                nencryptedBlocks += ((s, l))
+            }
+        }
+        encryptedBlocks = nencryptedBlocks
     }
 
     /** Delete a character */
     def deleteChar(pos: Int) {
         val ch = text.charAt(pos)
         noteDamage(ch == '\n' || getRow(pos) != getRow(point))
-        // Shift the mark
-        if (pos <= mark) mark -= 1
+        shiftMark(pos, -1)
         text.deleteChar(pos)
     }
 
     /** Delete a range of characters. */
     def deleteRange(pos: Int, len: Int) {
         noteDamage(true)
-        // Shift the mark - note that we may delete the mark in the process
-        if (pos <= mark) {
-            mark -= len
-        }
+        shiftMark(pos, -len)
         text.deleteRange(pos, len)
     }
     
     /** Insert a character */
     def insert(pos: Int, ch: Char) {
         noteDamage(ch == '\n' || getRow(pos) != getRow(point))
-        // Shift the mark
-        if (pos <= mark) mark += 1
+        shiftMark(pos, 1)
         text.insert(pos, ch)
     }
     
     /** Insert a string */
     def insert(pos: Int, s: String) {
         noteDamage(true)
-        // Shift the mark
-        if (pos <= mark) mark += s.length
+        shiftMark(pos, s.length)
         text.insert(pos, s)
     }
     
     /** Insert an immutable text. */
     def insert(pos: Int, s: Text.Immutable) {
         noteDamage(true)
-        // Shift the mark
-        if (pos <= mark) mark += s.length
+        shiftMark(pos, s.length)
         text.insert(pos, s)
     }
     
     /** Insert a Text. */
     def insert(pos: Int, t: Text) {
         noteDamage(true)
-        // Shift the mark
-        if (pos <= mark) mark += t.length
+        shiftMark(pos, t.length)
         text.insert(pos, t)
     }
 
@@ -236,6 +296,9 @@ class EdBuffer {
         timestamp = 0
         file_timestamp = 0
         buffer_timestamp = 0
+
+        // Reset the encrypted blocks (Task B)
+        encryptedBlocks.clear()
 
         noteDamage(true)
     }
@@ -271,9 +334,11 @@ class EdBuffer {
         // The buffer timestamp is part of the editing state whilst the file timestamp is only modified when a file
         // is saved or loaded and the principal timestamp is a time-keeping device.
         private val bf_ts = buffer_timestamp
-        
+        // Store the current record of encrypted blocks within the text (Task B)
+        private val blks = encryptedBlocks
+
         /** Restore the state when the memento was created */
-        def restore() { point = pt ; mark = mk; buffer_timestamp = bf_ts }
+        def restore() { point = pt ; mark = mk; buffer_timestamp = bf_ts; encryptedBlocks = blks}
     }
 
     /** Change that records an insertion */
@@ -286,6 +351,18 @@ class EdBuffer {
     class Transposition(pos: Int) extends Change {
         def undo() { transpose(pos) }
         def redo() { transpose(pos) }
+    }
+
+    /** Change that records encrypting part of the text (Task B) */
+    class Encryption(pos: Int, len: Int) extends Change {
+        def undo() { rotRange(pos, len); removeEncryptedBlock((pos, len)) }
+        def redo() { rotRange(pos, len); registerEncryptedBlock((pos, len)) }
+    }
+
+    /** Change that records decrypting part of the text (Task B) */
+    class Decryption(pos: Int, len: Int) extends Change {
+        def undo() { rotRange(pos, len); registerEncryptedBlock((pos, len)) }
+        def redo() { rotRange(pos, len); removeEncryptedBlock((pos, len)) }
     }
 
     /** Insertion that can be amalgamated with adjacent, similar changes */

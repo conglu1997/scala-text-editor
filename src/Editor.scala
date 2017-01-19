@@ -94,6 +94,9 @@ class Editor extends Undoable[Editor.Action] {
 
             val ch = ed.getRange(p, length)
 
+            // Task B - if the region coincides with an immutable encrypted block then fail.
+            if (ed.inInsideEncryptedBlock((p, length)).isDefined) return null
+
             // Use setChar to avoid insertions and deletions
             for (i <- 0 until length) {
                 ed.setChar(p + i, ed.charAt(p + i).toUpper)
@@ -103,9 +106,42 @@ class Editor extends Undoable[Editor.Action] {
         }
     }
 
+    /** Command: Encrypt the text between the point and the mark using ROT-13 (Task B) */
+    def cipherCommand: Change = {
+        // Note that point and mark are always at the cursor "between characters", we will encrypt an inclusive range
+        // which we work out. In the following implementation, we will treat newline characters as standard characters
+        // to be encrypted since other encryption functions may mutate them.
+
+        // If the pointer is currently within an encrypted block - decrypt it.
+        ed.inInsideEncryptedBlock((ed.point, 1)) match {
+            case Some(b) =>
+                // If the pointer is inside an encrypted block then decrypt it, once it has been decrypted it is
+                // mutable again. Decrypting is the same as encrypting with rot13.
+                ed.rotRange(b._1, b._2)
+                ed.removeEncryptedBlock((b._1, b._2))
+                new ed.Decryption(b._1, b._2)
+            case None =>
+                // If the point and mark is at the same spot, do nothing.
+                if (ed.point == ed.mark) return null
+
+                // length is thus at least 1 and we encrypt text[start, start+length)
+                val start = Math.min(ed.point, ed.mark)
+                val length = Math.abs(ed.point - ed.mark)
+
+                // If the block we want to mutate contains immutable characters, fail.
+                if (ed.inInsideEncryptedBlock((start, length)).isDefined) return null
+                // Otherwise, we will register the new block as encrypted.
+                ed.rotRange(start, length)
+                ed.registerEncryptedBlock((start, length))
+                new ed.Encryption(start, length)
+        }
+    }
+
+
     /** Command: Insert a character */
     def insertCommand(ch: Char): Change = {
         val p = ed.point
+        if (ed.forbidInsertion((p, 1))) return null
         ed.insert(p, ch)
         ed.point = p+1
         new ed.AmalgInsertion(p, ch)
@@ -119,23 +155,27 @@ class Editor extends Undoable[Editor.Action] {
             case Editor.LEFT =>
                 if (p == 0) { beep(); return null }
                 p -= 1
+                if (ed.inInsideEncryptedBlock((p, 1)).isDefined) return null
                 ch = ed.getRange(p, 1)
                 ed.deleteChar(p)
                 ed.point = p
             case Editor.RIGHT =>
                 if (p == ed.length) { beep(); return null }
+                if (ed.inInsideEncryptedBlock((p, 1)).isDefined) return null
                 ch = ed.getRange(p, 1)
                 ed.deleteChar(p)
             case Editor.END =>
                 if (p == ed.length) { beep(); return null }
                 if (ed.charAt(p) == '\n') {
                     // Delete the new-line and join the two lines
+                    if (ed.inInsideEncryptedBlock((p, 1)).isDefined) return null
                     ch = ed.getRange(p, 1)
                     ed.deleteChar(p)
                 } else {
                     // Delete to the end of the line
                     val row = ed.getRow(p)
                     val numChars = ed.getPos(row, ed.getLineLength(row)-1) - p
+                    if (ed.inInsideEncryptedBlock((p, numChars)).isDefined) return null
                     ch = ed.getRange(p, numChars)
                     ed.deleteRange(p, numChars)
                 }
@@ -229,7 +269,7 @@ class Editor extends Undoable[Editor.Action] {
         while (alive) {
             val key = display.getKey()
             Editor.keymap.find(key) match {
-                case Some(cmd) => {
+                case Some(cmd) =>
                     if(perform(cmd)) {
                         // Task 9: Increment the "time-keeping" timestamp on each editing action.
                         // Guarantees unique timestamp for each editing action.
@@ -237,7 +277,6 @@ class Editor extends Undoable[Editor.Action] {
                         // Set the buffer timestamp to the timekeeping timestamp.
                         ed.buffer_timestamp = ed.timestamp
                     }
-                }
                 case None => beep()
             }
         }
@@ -310,6 +349,7 @@ object Editor {
         Display.ctrl('E') -> (_.moveCommand(END)),
         Display.ctrl('F') -> (_.moveCommand(RIGHT)),
         Display.ctrl('G') -> (_.beep),
+        Display.ctrl('H') -> (_.cipherCommand),
         Display.ctrl('K') -> (_.deleteCommand(END)),
         Display.ctrl('L') -> (_.chooseOrigin),
         Display.ctrl('M') -> (_.markCommand),
