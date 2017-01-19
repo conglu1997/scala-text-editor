@@ -221,15 +221,17 @@ class EdBuffer {
         // Shift the mark - note that we may delete the mark in the process
         if (pos <= mark) mark += num
         // Adjust the encrypted blocks in the buffer
-        var nencryptedBlocks = new scala.collection.mutable.HashSet[(Int, Int)]
+        // This incurs a performance penalty that is linear in the number of blocks each time an insert/deletion is
+        // made. However, it is worst-case linear in any situation as all blocks must be updated as the mark moves.
+        var new_encryptedBlocks = new scala.collection.mutable.HashSet[(Int, Int)]
         for ((s, l) <- encryptedBlocks) {
             if (pos <= s) {
-                nencryptedBlocks += ((s + num, l))
+                new_encryptedBlocks += ((s + num, l))
             } else {
-                nencryptedBlocks += ((s, l))
+                new_encryptedBlocks += ((s, l))
             }
         }
-        encryptedBlocks = nencryptedBlocks
+        encryptedBlocks = new_encryptedBlocks
     }
 
     /** Delete a character */
@@ -334,11 +336,9 @@ class EdBuffer {
         // The buffer timestamp is part of the editing state whilst the file timestamp is only modified when a file
         // is saved or loaded and the principal timestamp is a time-keeping device.
         private val bf_ts = buffer_timestamp
-        // Store the current record of encrypted blocks within the text (Task B)
-        private val blks = encryptedBlocks
 
         /** Restore the state when the memento was created */
-        def restore() { point = pt ; mark = mk; buffer_timestamp = bf_ts; encryptedBlocks = blks}
+        def restore() { point = pt ; mark = mk; buffer_timestamp = bf_ts}
     }
 
     /** Change that records an insertion */
